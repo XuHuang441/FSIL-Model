@@ -12,4 +12,4 @@ Place the JSON file and script in the same directory to generate the output.
 
 ## Finetuning.ipynb
 
-
+The initial model does not perform very well
