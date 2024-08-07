@@ -1,6 +1,8 @@
 # FSIL-Model
 
-## Data Preprocessing.ipynb
+## t-ner Model
+
+### Data Preprocessing.ipynb
 
 Given an annotated JSON file, the script outputs the processed data in CoNLL format.
 
@@ -10,7 +12,7 @@ The 'O-' tag is also implemented, meaning that everything other than the labeled
 
 Place the JSON file and script in the same directory to generate the output.
 
-## Finetuning.ipynb
+### Finetuning.ipynb
 
 The initial model does not perform very well
 
