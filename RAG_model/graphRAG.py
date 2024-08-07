@@ -3,20 +3,23 @@ import networkx as nx
 from cdlib import algorithms
 import os
 from dotenv import load_dotenv
-import json
-from bs4 import BeautifulSoup
 from LLMmodule import get_llm_response
 
 
-input_file_path = "../MLModelTraining/covenants.json"
-
 # 1. Source Documents → Text Chunks
-def split_documents_into_chunks(documents, chunk_size=600, overlap_size=100):
+def split_documents_into_chunks(documents, chunk_size=1500, overlap_size=150):
     chunks = []
-    for document in documents:
-        for i in range(0, len(document), chunk_size - overlap_size):
-            chunk = document[i:i + chunk_size]
-            chunks.append(chunk)
+
+    document = documents
+
+    for i in range(0, len(document), chunk_size - overlap_size):
+        chunk = document[i:i + chunk_size]
+        chunks.append(chunk)
+    #
+    # with open("output.txt", "w", encoding='utf-8') as file2:
+    #     for item in chunks:
+    #         file2.write(item + '\n')
+
     return chunks
 
 
@@ -164,32 +167,30 @@ def graph_rag_pipeline(documents, query, chunk_size=600, overlap_size=100):
 
     return final_answer
 
+query = ("Please find and annotate a paragraph in the following document that defines any of the following types of covenants. Use **[COVENANT DEFINITION]** to mark the beginning of the paragraph. The types of covenant definitions to look for include:"
+         "- Leverage"
+         "- ICR (Interest Coverage Ratio))"
+         "- FCCR (Fixed Charge Coverage Ratio)"
+         "- DtE (Debt-to-EBITDA)"
+         "- Networth"
+         "- Tan Networth (Tangible Networth)"
+         "- CR (Current Ratio)"
+         "- QR (Quick Ratio)"
+         "- CAPEX (CapEx or Investment)"
+         "- Dividend (Dividend and Other Payment Restriction)"
+         "- Other"
+         "Please note that not all types may be present in the document, so provide any one that you find. For example:"
+         "'**[Leverage Covenant Definition]**: As of the last day of any fiscal quarter, permit the Consolidated Total Leverage Ratio to be greater than 2.50 to 1.00.'")
 
-with open(input_file_path, 'r') as file:
-    data = json.load(file)
+cleaned_data = []
 
-for document in data:
-    html_content = document['data']['html']
-    soup = BeautifulSoup(html_content, 'html.parser')
-    full_text = soup.get_text()
+with open('cleaned_data.txt', 'r', encoding='utf-8') as file:
+    lines = file.readlines()
+    for line in lines:
+        cleaned_data.append(line.strip())
 
-    query = ("Please find and annotate a paragraph in the following document that defines any of the following types of covenants. Use **[COVENANT DEFINITION]** to mark the beginning of the paragraph. The types of covenant definitions to look for include:"
-             "- Leverage"
-             "- ICR (Interest Coverage Ratio))"
-             "- FCCR (Fixed Charge Coverage Ratio)"
-             "- DtE (Debt-to-EBITDA)"
-             "- Networth"
-             "- Tan Networth (Tangible Networth)"
-             "- CR (Current Ratio)"
-             "- QR (Quick Ratio)"
-             "- CAPEX (CapEx or Investment)"
-             "- Dividend (Dividend and Other Payment Restriction)"
-             "- Other"
-             "Please note that not all types may be present in the document, so provide any one that you find. For example:"
-             "'**[Leverage Covenant Definition]**: As of the last day of any fiscal quarter, permit the Consolidated Total Leverage Ratio to be greater than 2.50 to 1.00.'")
+full_text = "".join(cleaned_data)
 
-    print('Query:', query)
-    answer = graph_rag_pipeline(full_text, query)
-    print('Answer:', answer)
-
-    break
+# print('Query:', query)
+answer = graph_rag_pipeline(full_text, query, chunk_size=1500, overlap_size=150)
+print('Answer:', answer)
