@@ -28,3 +28,7 @@ The pipeline is structured as follows:
 4. Model the index created in the previous step as a homogeneous undirected weighted graph.
 5. Generate report-like summaries for each community.
 6. Given a user query, utilize the community summaries generated in the previous step to produce a final answer through a multi-stage process.
+
+### Evaluation
+
+Three types of labels are evaluated: Covenant Condition, Definition, and Covenant Definition. The pipeline aims to generate the most relevant topic for each label, and the quality of the results is assessed using ROUGE by comparing the generated answers with the original labeled data. However, due to the limitations of GraphRAG (which lacks a vectorization database), evaluating the retriever is challenging. Instead, it is more feasible to assess the extraction of element instances, element summaries, and community summaries.
