@@ -18,4 +18,4 @@ def get_labeled_data():
             except KeyError:
                 pass
 
-        return labeled_data
+    return labeled_data
