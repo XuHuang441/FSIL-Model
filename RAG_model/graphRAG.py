@@ -1,9 +1,52 @@
-from openai import OpenAI
+# from openai import OpenAI
 import networkx as nx
 from cdlib import algorithms
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from LLMmodule import get_llm_response
+import re
+from tools import get_labeled_data
+from rouge_score import rouge_scorer
+
+
+cov_cond_label = [
+            "Leverage Covenant Condition",
+            "ICR Covenant Condition",
+        "FCCR Covenant Condition",
+        "DtE Covenant Condition",
+    "Networth Covenant Condition",
+        "Tan Networth Covenant Condition",
+    "CR Covenant Condition",
+        "QR Covenant Condition",
+        "CAPEX Covenant Condition",
+        "Dividend Covenant Condition",
+            "Other Covenant Condition"
+]
+
+def_label = ["Leverage Definition",
+                   "ICR Definition",
+                   "FCCR Definition",
+                   "DtE Definition",
+                   "Networth Definition",
+                   "Tan Networth Definition",
+                   "CR Definition",
+                   "QR Definition",
+                   "CAPEX Definition",
+                   "Dividend Definition",
+                   "Other Definition"]
+
+cov_def_label = [
+                "Leverage Covenant Definition",
+                "ICR Covenant Definition",
+            "FCCR Covenant Definition",
+            "DtE Covenant Definition",
+                "Networth Covenant Definition",
+          "Tan Networth Covenant Definition",
+            "CR Covenant Definition",
+            "QR Covenant Definition",
+                "CAPEX Covenant Definition",
+                "Dividend Covenant Definition",
+                "Other Covenant Definition",  ]
 
 
 # 1. Source Documents → Text Chunks
@@ -167,21 +210,6 @@ def graph_rag_pipeline(documents, query, chunk_size=600, overlap_size=100):
 
     return final_answer
 
-query = ("Please find and annotate a paragraph in the following document that defines any of the following types of covenants. Use **[COVENANT DEFINITION]** to mark the beginning of the paragraph. The types of covenant definitions to look for include:"
-         "- Leverage"
-         "- ICR (Interest Coverage Ratio))"
-         "- FCCR (Fixed Charge Coverage Ratio)"
-         "- DtE (Debt-to-EBITDA)"
-         "- Networth"
-         "- Tan Networth (Tangible Networth)"
-         "- CR (Current Ratio)"
-         "- QR (Quick Ratio)"
-         "- CAPEX (CapEx or Investment)"
-         "- Dividend (Dividend and Other Payment Restriction)"
-         "- Other"
-         "Please note that not all types may be present in the document, so provide any one that you find. For example:"
-         "'**[Leverage Covenant Definition]**: As of the last day of any fiscal quarter, permit the Consolidated Total Leverage Ratio to be greater than 2.50 to 1.00.'")
-
 cleaned_data = []
 
 with open('cleaned_data.txt', 'r', encoding='utf-8') as file:
@@ -191,6 +219,75 @@ with open('cleaned_data.txt', 'r', encoding='utf-8') as file:
 
 full_text = "".join(cleaned_data)
 
-# print('Query:', query)
-answer = graph_rag_pipeline(full_text, query, chunk_size=1500, overlap_size=150)
-print('Answer:', answer)
+# query = ("Please find and annotate a paragraph in the following document that defines any of the following types of covenants. Use **[COVENANT DEFINITION]** to mark the beginning of the paragraph. The types of covenant definitions to look for include:"
+#          "- Leverage"
+#          "- ICR (Interest Coverage Ratio))"
+#          "- FCCR (Fixed Charge Coverage Ratio)"
+#          "- DtE (Debt-to-EBITDA)"
+#          "- Networth"
+#          "- Tan Networth (Tangible Networth)"
+#          "- CR (Current Ratio)"
+#          "- QR (Quick Ratio)"
+#          "- CAPEX (CapEx or Investment)"
+#          "- Dividend (Dividend and Other Payment Restriction)"
+#          "- Other"
+#          "Please note that not all types may be present in the document, so provide any one that you find. For example:"
+#          "'**[Leverage Covenant Definition]**: As of the last day of any fiscal quarter, permit the Consolidated Total Leverage Ratio to be greater than 2.50 to 1.00.'")
+
+result_cov_cond = []
+
+for label in cov_cond_label:
+    query = f"Identify the condition for {label}"
+    answer = graph_rag_pipeline(full_text, query, chunk_size=1500, overlap_size=150)
+    result_cov_cond.append(answer)
+    with open(f"output/{label}.txt", "w", encoding='utf-8') as file:
+        file.write(answer)
+
+result_def = []
+for label in def_label:
+    query = f"What is the {label}?"
+    answer = graph_rag_pipeline(full_text, query, chunk_size=1500, overlap_size=150)
+    result_def.append(answer)
+    with open(f"output/{label}.txt", "w", encoding='utf-8') as file:
+        file.write(answer)
+
+result_cov_def = []
+for label in cov_def_label:
+    query = f"Define the {label} in covenant context"
+    answer = graph_rag_pipeline(full_text, query, chunk_size=1500, overlap_size=150)
+    result_cov_def.append(answer)
+    with open(f"output/{label}.txt", "w", encoding='utf-8') as file:
+        file.write(answer)
+
+# evaluation
+labeled_data = get_labeled_data()
+
+pattern_cov_cond = re.compile(r".*Covenant Condition$", re.IGNORECASE)
+pattern_def = re.compile(r"(?<!covenant )definition$", re.IGNORECASE)
+pattern_cov_def = re.compile(r".*covenant definition$", re.IGNORECASE)
+
+cov_cond_strings = [s for s in labeled_data if pattern_cov_cond.match(s)]
+def_strings = [s for s in labeled_data if pattern_def.match(s)]
+cov_def_strings = [s for s in labeled_data if pattern_cov_def.match(s)]
+
+cov_cond_str = " ".join(cov_cond_strings)
+def_str = " ".join(def_strings)
+cov_def_str = " ".join(cov_def_strings)
+
+result_cov_cond_str = " ".join(result_cov_cond)
+result_def_str = " ".join(result_def)
+result_cov_def_str = " ".join(result_cov_def)
+
+def evaluate_final_answer(generated_answer, ground_truth_answer):
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True)
+    scores = scorer.score(generated_answer, ground_truth_answer)
+    return scores
+
+final_answer_scores = evaluate_final_answer(result_cov_cond_str, cov_cond_str)
+print(f"Final Answer Evaluation for Covenant Condition: {final_answer_scores}")
+
+final_answer_scores = evaluate_final_answer(result_def_str, def_str)
+print(f"Final Answer Evaluation for Definition: {final_answer_scores}")
+
+final_answer_scores = evaluate_final_answer(result_cov_def_str, cov_def_str)
+print(f"Final Answer Evaluation for Covenant Definition: {final_answer_scores}")
